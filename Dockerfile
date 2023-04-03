@@ -1,13 +1,21 @@
-FROM node:18.3.0-alpine3.15 as run
-WORKDIR /src
+# Use the official Node.js image as the base image
+FROM node:16-alpine
 
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy package.json and package-lock.json to the working directory
+COPY package*.json ./
+
+# Install the application dependencies
+RUN npm install
+
+# Copy the rest of the application code to the working directory
 COPY . .
+RUN npm run build
 
-# RUN npm install --global yarn
+# Expose the port that the application will run on (if applicable)
+EXPOSE 3000
 
-RUN npm upgrade --location=global yarn 
-
-RUN yarn
-RUN yarn build
-
-CMD ["yarn", "start"]
+# Start the application by running server_pass.js
+CMD ["npm", "start"]
