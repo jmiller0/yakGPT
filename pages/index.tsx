@@ -5,16 +5,21 @@ import ChatDisplay from "@/components/ChatDisplay";
 import Hero from "@/components/Hero";
 import { useChatStore } from "@/stores/ChatStore";
 import { useEffect, useState } from "react";
+import withBasicAuth from "@/pages/withBasicAuth";
 import AudioPlayer from "@/components/AudioPlayer";
 import UIController from "@/components/UIController";
 
-export default function Home() {
+const inter = Inter({ subsets: ["latin"] });
+
+function Home() {
+  const theme = useMantineTheme();
+
   const apiKey = useChatStore((state) => state.apiKey);
   const playerMode = useChatStore((state) => state.playerMode);
 
   const [isHydrated, setIsHydrated] = useState(false);
 
-  //Wait till NextJS rehydration completes
+  // Wait till NextJS rehydration completes
   useEffect(() => {
     setIsHydrated(true);
   }, []);
@@ -55,3 +60,5 @@ export default function Home() {
     </>
   );
 }
+
+export default withBasicAuth(Home);
