@@ -1,11 +1,8 @@
 import { IncomingMessage } from "http";
 import https from "https";
-import { Message, truncateMessages } from "./Message";
-import encoder from "@nem035/gpt-3-encoder";
+import { Message, truncateMessages, countTokens } from "./Message";
+import { getModelInfo } from "./Model";
 import axios from "axios";
-import { notifications } from "@mantine/notifications";
-
-const countTokens = (text: string) => encoder.encode(text).length;
 
 export function assertIsError(e: any): asserts e is Error {
   if (!(e instanceof Error)) {
@@ -29,7 +26,7 @@ async function fetchFromAPI(endpoint: string, key: string) {
   }
 }
 
-export async function testKey(key: string): Promise<boolean | undefined> {
+export async function testKey(key: string): Promise<boolean> {
   try {
     const res = await fetchFromAPI("https://api.openai.com/v1/models", key);
     return res.status === 200;
@@ -40,11 +37,13 @@ export async function testKey(key: string): Promise<boolean | undefined> {
       }
     }
   }
+  return false;
 }
 
 export async function fetchModels(key: string): Promise<string[]> {
   try {
     const res = await fetchFromAPI("https://api.openai.com/v1/models", key);
+    console.log(res.data.data);
     return res.data.data.map((model: any) => model.id);
   } catch (e) {
     return [];
@@ -123,7 +122,12 @@ export async function streamCompletion(
   endCallback?: ((tokensUsed: number) => void) | undefined,
   errorCallback?: ((res: IncomingMessage, body: string) => void) | undefined
 ) {
-  const submitMessages = truncateMessages(messages, 4096 - params.max_tokens);
+  const modelInfo = getModelInfo(params.model);
+  const submitMessages = truncateMessages(
+    messages,
+    modelInfo.maxTokens,
+    params.max_tokens
+  );
   console.log(`Sending ${submitMessages.length} messages:`);
   console.log(submitMessages.map((m) => m.content.slice(0, 50)).join("\n"));
 
@@ -133,11 +137,13 @@ export async function streamCompletion(
   );
 
   const payload = JSON.stringify({
-    messages: messages.map(({ role, content }) => ({ role, content })),
+    messages: submitMessages.map(({ role, content }) => ({ role, content })),
     stream: true,
     ...{
       ...submitParams,
       logit_bias: JSON.parse(params.logit_bias || "{}"),
+      // 0 == unlimited
+      max_tokens: params.max_tokens || undefined,
     },
   });
 
