@@ -3,11 +3,11 @@ name: ${SERVICE}
 
 services:
   gpt:
-    env_file: .env
+    env_file: .env.local
     image: ${SERVICE}:latest
 
   nginx:
-    env_file: .env
+    env_file: .env.local
     image: nginx:alpine
     ports:
       - "3000:3000"
