@@ -43,7 +43,6 @@ export async function testKey(key: string): Promise<boolean> {
 export async function fetchModels(key: string): Promise<string[]> {
   try {
     const res = await fetchFromAPI("https://api.openai.com/v1/models", key);
-    console.log(res.data.data);
     return res.data.data.map((model: any) => model.id);
   } catch (e) {
     return [];
@@ -123,15 +122,17 @@ export async function streamCompletion(
   errorCallback?: ((res: IncomingMessage, body: string) => void) | undefined
 ) {
   const modelInfo = getModelInfo(params.model);
+
+  // Truncate messages to fit within maxTokens parameter
   const submitMessages = truncateMessages(
     messages,
     modelInfo.maxTokens,
     params.max_tokens
   );
+
   console.log(`Sending ${submitMessages.length} messages:`);
   console.log(submitMessages.map((m) => m.content.slice(0, 50)).join("\n"));
 
-  // Pick all params in paramKeys
   const submitParams = Object.fromEntries(
     Object.entries(params).filter(([key]) => paramKeys.includes(key))
   );
@@ -148,6 +149,7 @@ export async function streamCompletion(
   });
 
   let buffer = "";
+
   const successCallback = (res: IncomingMessage) => {
     res.on("data", (chunk) => {
       if (abortController?.signal.aborted) {
@@ -156,10 +158,13 @@ export async function streamCompletion(
         return;
       }
 
+      // Split response into individual messages
       const allMessages = chunk.toString().split("\n\n");
       for (const message of allMessages) {
+        // Remove first 5 characters ("data:") of response
         const cleaned = message.toString().slice(5);
-        if (cleaned === "[DONE]") {
+
+        if (!cleaned || cleaned === " [DONE]") {
           return;
         }
 
@@ -167,6 +172,7 @@ export async function streamCompletion(
         try {
           parsed = JSON.parse(cleaned);
         } catch (e) {
+          console.error(e);
           return;
         }
 
@@ -175,6 +181,7 @@ export async function streamCompletion(
           continue;
         }
         buffer += content;
+
         callback?.(content);
       }
     });
@@ -183,6 +190,7 @@ export async function streamCompletion(
       const tokensUsed =
         countTokens(submitMessages.map((m) => m.content).join("\n")) +
         countTokens(buffer);
+
       endCallback?.(tokensUsed);
     });
   };
